@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Wartości Majątku</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        input[type=range] { accent-color: #3b82f6; }
+        .preset-btn { transition: all 0.2s ease-in-out; }
+        .preset-btn.active { background-color: #1d4ed8; color: white; border-color: #1d4ed8; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Panel boczny (lewy) -->
+    <div class="w-full md:w-1/3 lg:w-1/4 bg-white shadow-xl flex flex-col h-full border-r border-gray-200 z-10 overflow-y-auto custom-scrollbar">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                Projekcja Majątku
+            </h1>
+
+            <div class="space-y-4">
+                <!-- Wiek -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Obecny wiek</label>
+                        <input type="number" id="startAge" value="21" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Wiek końcowy</label>
+                        <input type="number" id="endAge" value="60" min="1" max="120" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Wpłaty -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kapitał początkowy (PLN)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="initialDepositSlider" min="0" max="1000000" step="1000" value="10000" class="w-full">
+                        <input type="number" id="initialDeposit" value="10000" class="w-24 px-2 py-1 border border-gray-300 rounded-md text-right">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Wpłata / <span class="text-red-500 font-bold">Wypłata</span> miesięczna
+                    </label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="monthlyDepositSlider" min="-20000" max="20000" step="100" value="2000" class="w-full">
+                        <input type="number" id="monthlyDeposit" value="2000" class="w-24 px-2 py-1 border border-gray-300 rounded-md text-right">
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1 leading-tight">Ustaw wartość ujemną, aby symulować przejadanie kapitału na emeryturze.</p>
+                </div>
+
+                <!-- Stopa zwrotu -->
+                <div class="pt-2 border-t border-gray-200">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Roczn. stopa zwrotu (%) <span class="text-xs text-gray-500 font-normal">- przyciski uwzględniają TER</span></label>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <button class="preset-btn px-2 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-50" data-rate="10" data-ter="0.07">S&P 500 (~10%)</button>
+                        <button class="preset-btn px-2 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-50" data-rate="14" data-ter="0.20">NASDAQ 100 (~14%)</button>
+                        <button class="preset-btn px-2 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-50" data-rate="22" data-ter="0.60">LQQ (~22%)</button>
+                        <button class="preset-btn px-2 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-50" data-rate="30" data-ter="0.95">TQQQ (~30%)</button>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="returnRateSlider" min="0" max="50" step="0.05" value="13.8" class="w-full">
+                        <input type="number" id="returnRate" value="13.8" step="0.05" class="w-20 px-2 py-1 border border-gray-300 rounded-md text-right">
+                    </div>
+                </div>
+
+                <!-- Inflacja -->
+                <div class="pt-2 border-t border-gray-200">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Przewidywana inflacja (%)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="inflationSlider" min="0" max="20" step="0.5" value="3.5" class="w-full">
+                        <input type="number" id="inflation" value="3.5" step="0.1" class="w-20 px-2 py-1 border border-gray-300 rounded-md text-right">
+                    </div>
+                </div>
+
+                <!-- VXN -->
+                <div class="pt-2 border-t border-gray-200">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Zmienność rynkowa (Indeks VXN)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="vxnSlider" min="10" max="85" step="1" value="25" class="w-full">
+                        <input type="number" id="vxnInput" value="25" class="w-20 px-2 py-1 border border-gray-300 rounded-md text-right">
+                    </div>
+                    
+                    <!-- Historia VXN -->
+                    <div class="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-gray-600 leading-tight">
+                        <p class="font-bold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">Historyczne wartości VXN:</p>
+                        <ul class="space-y-1 list-disc pl-3">
+                            <li><strong>~15-20:</strong> Spokojny rynek, stabilne wzrosty.</li>
+                            <li><strong>~35-40:</strong> Bessa inflacyjna (2022).</li>
+                            <li><strong>77.2:</strong> Krach pandemiczny COVID-19 (Marzec 2020).</li>
+                            <li><strong>81.0:</strong> Kryzys Finansowy (2008).</li>
+                            <li><strong>~85.0:</strong> Pęknięcie Bańki Dot-com (2000).</li>
+                        </ul>
+                        <p class="text-red-600 font-semibold mt-1.5 pt-1 border-t border-gray-200">
+                            Uwaga: Pojedynczy pik >70 potrafi bezpowrotnie wyzerować lewarowane ETF-y (TQQQ).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Strategia 50/50 -->
+                <div class="pt-3 border-t border-gray-200 bg-blue-50/50 -mx-6 px-6 pb-4">
+                    <label class="block text-sm font-bold text-gray-800 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        Inżynieria Rynku & Strategia
+                    </label>
+                    <div class="space-y-3">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="checkbox" id="marketCycles" class="form-checkbox h-5 w-5 text-blue-600 rounded mt-0.5" checked>
+                            <div>
+                                <span class="text-sm font-semibold text-gray-800">Cykliczność rynku (Wymagane)</span>
+                                <p class="text-[10px] text-gray-500 leading-tight mt-0.5">Zastępuje gładką linię historycznymi 7-letnimi cyklami. Wymusza obsunięcia kapitału.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start space-x-3 cursor-pointer bg-white p-2 border border-amber-200 rounded-lg shadow-sm">
+                            <input type="checkbox" id="bloodStrategy" class="form-checkbox h-5 w-5 text-amber-500 rounded mt-0.5">
+                            <div>
+                                <span class="text-sm font-bold text-amber-700">Aktywuj: 50/50 & Kupuj Krew</span>
+                                <p class="text-[10px] text-gray-600 leading-tight mt-1">Oszczędza 50% wpłat na koncie (2%). Gdy spadek wyniesie ≥20%, inwestuje całą gotówkę.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Prawy panel (Główny obszar z wykresem i danymi) -->
+    <div class="w-full md:w-2/3 lg:w-3/4 h-full bg-gray-50 overflow-y-auto custom-scrollbar" id="mainContent">
+        <div class="p-6 flex flex-col space-y-6">
+            
+            <!-- Podsumowanie danych (4 Kafelki) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm text-gray-500 font-medium" id="sumLabel">Suma wpłat</h3>
+                    <p class="text-xl font-bold text-gray-800 mt-1" id="sumDeposits">0 PLN</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
+                    <h3 class="text-sm text-gray-500 font-medium">Wartość na końcu (Nominalnie)</h3>
+                    <p class="text-xl font-bold text-gray-800 mt-1" id="finalNominal">0 PLN</p>
+                    <p class="text-xs text-amber-600 font-bold hidden absolute bottom-2 right-4" id="cashReserveStatus">Z czego gotówka: 0 PLN</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 border-b-4 border-b-blue-500">
+                    <h3 class="text-sm text-blue-600 font-bold">Wartość w dzisiejszych pieniądzach</h3>
+                    <p class="text-2xl font-black text-gray-900 mt-1" id="finalReal">0 PLN</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm text-gray-500 font-medium">Czysty zysk (Realnie)</h3>
+                    <p class="text-xl font-bold text-green-600 mt-1" id="realProfit">0 PLN</p>
+                </div>
+            </div>
+
+            <!-- Ryzyko Bankructwa -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <div>
+                    <h3 class="text-sm text-gray-500 font-medium">Ryzyko Bankructwa (Wipeout Risk)</h3>
+                    <p class="text-xs text-gray-400">Symulacja Monte Carlo dla podanego horyzontu czasowego i zmienności rynkowej.</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-black mt-1" id="ruinProbability">0.0%</p>
+                </div>
+            </div>
+
+            <!-- Kontener wykresu -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative h-[450px]">
+                <canvas id="wealthChart"></canvas>
+            </div>
+            
+            <!-- KREATOR PORTFELA -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+                    <h2 class="text-lg font-bold flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                        Kreator Portfela (Asset Allocation)
+                    </h2>
+                </div>
+                <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 space-y-4">
+                        <p class="text-sm text-gray-600 mb-2">Ustaw proporcje instrumentów. Algorytm automatycznie znormalizuje wagi do 100%, więc możesz swobodnie przesuwać suwaki, mieszając ryzyko ze stabilnością.</p>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <div class="w-32 text-sm font-semibold text-gray-700">S&P 500</div>
+                                <input type="range" id="portSP500" min="0" max="100" value="100" class="flex-grow mx-3">
+                                <div class="w-16 text-right font-mono text-sm font-bold text-blue-600" id="portValSP500">100.0%</div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-32 text-sm font-semibold text-gray-700">NASDAQ 100</div>
+                                <input type="range" id="portNDX" min="0" max="100" value="0" class="flex-grow mx-3">
+                                <div class="w-16 text-right font-mono text-sm font-bold text-blue-600" id="portValNDX">0.0%</div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-32 text-sm font-semibold text-gray-700">LQQ (2x)</div>
+                                <input type="range" id="portLQQ" min="0" max="100" value="0" class="flex-grow mx-3">
+                                <div class="w-16 text-right font-mono text-sm font-bold text-blue-600" id="portValLQQ">0.0%</div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-32 text-sm font-semibold text-gray-700">TQQQ (3x)</div>
+                                <input type="range" id="portTQQQ" min="0" max="100" value="0" class="flex-grow mx-3">
+                                <div class="w-16 text-right font-mono text-sm font-bold text-blue-600" id="portValTQQQ">0.0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Wynik portfela</h4>
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Śr. zysk rynkowy:</span>
+                                <span class="font-bold text-gray-800" id="portAvgReturn">10.00%</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Średni koszt (TER):</span>
+                                <span class="font-bold text-red-600" id="portAvgTer">0.07%</span>
+                            </div>
+                            <div class="flex justify-between text-base border-t border-gray-200 pt-2 mt-2">
+                                <span class="font-bold text-gray-800">Zysk Netto:</span>
+                                <span class="font-black text-green-600" id="portNetReturn">9.93%</span>
+                            </div>
+                        </div>
+                        <button id="applyPortfolioBtn" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded shadow transition-colors text-sm flex justify-center items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Zastosuj do symulacji
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let wealthChart = null;
+
+        // Powiązania elementów
+        const inputs = {
+            startAge: document.getElementById('startAge'),
+            endAge: document.getElementById('endAge'),
+            initialDeposit: document.getElementById('initialDeposit'),
+            initialDepositSlider: document.getElementById('initialDepositSlider'),
+            monthlyDeposit: document.getElementById('monthlyDeposit'),
+            monthlyDepositSlider: document.getElementById('monthlyDepositSlider'),
+            returnRate: document.getElementById('returnRate'),
+            returnRateSlider: document.getElementById('returnRateSlider'),
+            inflation: document.getElementById('inflation'),
+            inflationSlider: document.getElementById('inflationSlider'),
+            vxnInput: document.getElementById('vxnInput'),
+            vxnSlider: document.getElementById('vxnSlider'),
+            marketCycles: document.getElementById('marketCycles'),
+            bloodStrategy: document.getElementById('bloodStrategy')
+        };
+
+        const displays = {
+            sumDeposits: document.getElementById('sumDeposits'),
+            sumLabel: document.getElementById('sumLabel'),
+            finalNominal: document.getElementById('finalNominal'),
+            finalReal: document.getElementById('finalReal'),
+            realProfit: document.getElementById('realProfit'),
+            cashReserveStatus: document.getElementById('cashReserveStatus'),
+            ruinProbability: document.getElementById('ruinProbability')
+        };
+
+        const presetButtons = document.querySelectorAll('.preset-btn');
+
+        // Dane dla Kreatora Portfela
+        const portData = [
+            { id: 'portSP500', valId: 'portValSP500', rate: 10, ter: 0.07 },
+            { id: 'portNDX', valId: 'portValNDX', rate: 14, ter: 0.20 },
+            { id: 'portLQQ', valId: 'portValLQQ', rate: 22, ter: 0.60 },
+            { id: 'portTQQQ', valId: 'portValTQQQ', rate: 30, ter: 0.95 }
+        ];
+
+        function updatePortfolio() {
+            let totalWeight = 0;
+            let weights = [];
+            
+            portData.forEach((asset, index) => {
+                const el = document.getElementById(asset.id);
+                const val = el ? (parseFloat(el.value) || 0) : 0;
+                weights[index] = val;
+                totalWeight += val;
+            });
+
+            let avgReturn = 0;
+            let avgTer = 0;
+
+            portData.forEach((asset, index) => {
+                const normalized = totalWeight > 0 ? (weights[index] / totalWeight) : (index === 0 ? 1 : 0);
+                const valEl = document.getElementById(asset.valId);
+                if (valEl) valEl.innerText = (normalized * 100).toFixed(1) + '%';
+                
+                avgReturn += normalized * asset.rate;
+                avgTer += normalized * asset.ter;
+            });
+
+            const netReturn = avgReturn - avgTer;
+
+            const rEl = document.getElementById('portAvgReturn');
+            const tEl = document.getElementById('portAvgTer');
+            const nEl = document.getElementById('portNetReturn');
+            
+            if (rEl) rEl.innerText = avgReturn.toFixed(2) + '%';
+            if (tEl) tEl.innerText = avgTer.toFixed(2) + '%';
+            if (nEl) nEl.innerText = netReturn.toFixed(2) + '%';
+        }
+
+        // Dodanie event listenerów dla suwaków portfela
+        portData.forEach(asset => {
+            const el = document.getElementById(asset.id);
+            if (el) el.addEventListener('input', updatePortfolio);
+        });
+
+        // Przycisk Zastosuj do symulacji
+        const applyBtn = document.getElementById('applyPortfolioBtn');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                const netReturnStr = document.getElementById('portNetReturn').innerText.replace('%', '');
+                inputs.returnRate.value = netReturnStr;
+                inputs.returnRateSlider.value = netReturnStr;
+                presetButtons.forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+                updateChart();
+            });
+        }
+
+        function syncInputs(slider, numberInput) {
+            if (!slider || !numberInput) return;
+            slider.addEventListener('input', () => { numberInput.value = slider.value; updateChart(); });
+            numberInput.addEventListener('input', () => { slider.value = numberInput.value; updateChart(); });
+        }
+
+        syncInputs(inputs.initialDepositSlider, inputs.initialDeposit);
+        syncInputs(inputs.monthlyDepositSlider, inputs.monthlyDeposit);
+        syncInputs(inputs.returnRateSlider, inputs.returnRate);
+        syncInputs(inputs.inflationSlider, inputs.inflation);
+        syncInputs(inputs.vxnSlider, inputs.vxnInput);
+
+        if(inputs.startAge) inputs.startAge.addEventListener('input', updateChart);
+        if(inputs.endAge) inputs.endAge.addEventListener('input', updateChart);
+        
+        if (inputs.marketCycles) {
+            inputs.marketCycles.addEventListener('change', () => {
+                if(!inputs.marketCycles.checked && inputs.bloodStrategy) {
+                    inputs.bloodStrategy.checked = false;
+                }
+                updateChart();
+            });
+        }
+        
+        if (inputs.bloodStrategy) {
+            inputs.bloodStrategy.addEventListener('change', () => {
+                if(inputs.bloodStrategy.checked && inputs.marketCycles && !inputs.marketCycles.checked) {
+                    inputs.marketCycles.checked = true; 
+                }
+                updateChart();
+            });
+        }
+
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const baseRate = parseFloat(e.target.dataset.rate);
+                const ter = parseFloat(e.target.dataset.ter);
+                const netRate = (baseRate - ter).toFixed(2);
+                
+                inputs.returnRate.value = netRate;
+                inputs.returnRateSlider.value = netRate;
+                
+                presetButtons.forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+                e.target.classList.add('active', 'bg-blue-600', 'text-white');
+                updateChart();
+            });
+        });
+
+        const formatter = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 });
+
+        // Symulacja Monte Carlo dla bankructwa
+        function calculateBankruptcyRisk(totalMonths, annualReturn, vxn) {
+            const simulations = 1000;
+            let bankruptcies = 0;
+            
+            const leverage = Math.max(1, annualReturn / 10.0); 
+            if (leverage < 1.5) return 0;
+            
+            const mu_annual = annualReturn / 100;
+            const sigma_annual = (vxn / 100) * leverage;
+            const mu_monthly = mu_annual / 12;
+            const sigma_monthly = sigma_annual / Math.sqrt(12);
+            const jumpProbability = (vxn / 100) * 0.05; 
+
+            for (let i = 0; i < simulations; i++) {
+                let assetValue = 100; 
+                let isDead = false;
+
+                for (let m = 0; m < totalMonths; m++) {
+                    let u = 0, v = 0;
+                    while(u === 0) u = Math.random();
+                    while(v === 0) v = Math.random();
+                    let shock = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                    
+                    let monthReturn = mu_monthly + (shock * sigma_monthly);
+                    
+                    if (Math.random() < jumpProbability) {
+                        let crashSeverity = 0.10 + (Math.random() * 0.15); 
+                        monthReturn = -(crashSeverity * leverage); 
+                    }
+                    
+                    assetValue = assetValue * (1 + monthReturn);
+                    
+                    if (assetValue <= 5 || monthReturn <= -0.90) {
+                        isDead = true;
+                        break;
+                    }
+                }
+                
+                if (isDead) bankruptcies++;
+            }
+            
+            return (bankruptcies / simulations) * 100;
+        }
+
+        function calculateData() {
+            const startAge = parseInt(inputs.startAge.value) || 0;
+            const endAge = parseInt(inputs.endAge.value) || 0;
+            const initialDeposit = parseFloat(inputs.initialDeposit.value) || 0;
+            const monthlyDeposit = parseFloat(inputs.monthlyDeposit.value) || 0;
+            const annualReturn = parseFloat(inputs.returnRate.value) || 0;
+            const annualInflation = inputs.inflation ? (parseFloat(inputs.inflation.value) || 0) : 0;
+            const vxn = parseFloat(inputs.vxnInput.value) || 20;
+            const useCycles = inputs.marketCycles.checked;
+            const useStrategy = inputs.bloodStrategy.checked;
+
+            if (startAge >= endAge) return null;
+
+            const totalMonths = (endAge - startAge) * 12;
+            const monthlyReturnRate = Math.pow(1 + (annualReturn / 100), 1/12) - 1;
+            const monthlyInflationRate = Math.pow(1 + (annualInflation / 100), 1/12) - 1;
+
+            const cycleLength = 84;
+            const bullLength = 60;
+            const bearLength = 24;
+            const maxDrawdown = Math.min(0.99, (vxn / 100) * 1.2); 
+            
+            const targetCycleMultiplier = Math.pow(1 + monthlyReturnRate, cycleLength);
+            const bearMultiplier = 1 - maxDrawdown;
+            const bullMultiplier = targetCycleMultiplier / bearMultiplier;
+            
+            const monthlyBullRate = Math.pow(bullMultiplier, 1/bullLength) - 1;
+            const monthlyBearRate = Math.pow(bearMultiplier, 1/bearLength) - 1;
+            const cashInterestRate = 0.02 / 12; 
+
+            let labels = [];
+            let realData = [];
+            let nominalData = [];
+            let contributionsData = [];
+            let cashData = [];
+            
+            let totalContributions = initialDeposit;
+            let invested_pool = initialDeposit;
+            let savings_pool = 0;
+            
+            let indexValue = 100;
+            let ATH = 100;
+
+            labels.push(startAge);
+            nominalData.push(initialDeposit);
+            realData.push(initialDeposit);
+            contributionsData.push(initialDeposit);
+            cashData.push(0);
+
+            for (let month = 1; month <= totalMonths; month++) {
+                
+                let currentRate = monthlyReturnRate;
+                if (useCycles) {
+                    let phase = (month - 1) % cycleLength;
+                    currentRate = (phase < bullLength) ? monthlyBullRate : monthlyBearRate;
+                }
+
+                indexValue *= (1 + currentRate);
+                if (indexValue > ATH) ATH = indexValue;
+                let currentDrawdown = (indexValue - ATH) / ATH;
+
+                invested_pool *= (1 + currentRate);
+                savings_pool *= (1 + cashInterestRate);
+                
+                if (useStrategy) {
+                    if (currentDrawdown <= -0.20) {
+                        if (savings_pool > 0) {
+                            invested_pool += savings_pool;
+                            savings_pool = 0;
+                        }
+                        invested_pool += monthlyDeposit;
+                        totalContributions += monthlyDeposit;
+                    } else {
+                        invested_pool += monthlyDeposit * 0.5;
+                        savings_pool += monthlyDeposit * 0.5;
+                        totalContributions += monthlyDeposit;
+                    }
+                } else {
+                    invested_pool += monthlyDeposit;
+                    totalContributions += monthlyDeposit;
+                }
+
+                let currentNominalValue = invested_pool + savings_pool;
+
+                if (currentNominalValue < 0) {
+                    currentNominalValue = 0;
+                    invested_pool = 0;
+                    savings_pool = 0;
+                }
+
+                if (month % 12 === 0) {
+                    let currentAge = startAge + (month / 12);
+                    labels.push(currentAge);
+                    
+                    const cumulativeInflationFactor = Math.pow(1 + monthlyInflationRate, month);
+                    const realValue = currentNominalValue / cumulativeInflationFactor;
+                    
+                    nominalData.push(currentNominalValue);
+                    realData.push(realValue);
+                    contributionsData.push(totalContributions);
+                    cashData.push(savings_pool / cumulativeInflationFactor);
+                }
+            }
+
+            const ruinProbability = calculateBankruptcyRisk(totalMonths, annualReturn, vxn);
+
+            return {
+                labels,
+                nominalData,
+                realData,
+                contributionsData,
+                cashData,
+                totalContributions,
+                monthlyDeposit,
+                finalNominal: nominalData[nominalData.length - 1],
+                finalReal: realData[realData.length - 1],
+                finalSavingsNominal: savings_pool,
+                strategyActive: useStrategy,
+                ruinProbability: ruinProbability
+            };
+        }
+
+        function updateChart() {
+            const data = calculateData();
+            if (!data) return;
+            
+            displays.sumLabel.innerText = data.monthlyDeposit < 0 ? "Suma wypłacona" : "Suma wpłat";
+            displays.sumDeposits.innerText = formatter.format(data.totalContributions);
+            displays.finalNominal.innerText = formatter.format(data.finalNominal);
+            displays.finalReal.innerText = formatter.format(data.finalReal);
+            
+            displays.ruinProbability.innerText = data.ruinProbability.toFixed(1) + '%';
+            if (data.ruinProbability > 20) {
+                displays.ruinProbability.className = "text-2xl font-black text-red-600 mt-1";
+            } else if (data.ruinProbability > 0) {
+                displays.ruinProbability.className = "text-2xl font-black text-amber-500 mt-1";
+            } else {
+                displays.ruinProbability.className = "text-2xl font-black text-green-600 mt-1";
+            }
+            
+            if (data.strategyActive) {
+                displays.cashReserveStatus.innerText = `W tym gotówka: ${formatter.format(data.finalSavingsNominal)}`;
+                displays.cashReserveStatus.classList.remove('hidden');
+            } else {
+                displays.cashReserveStatus.classList.add('hidden');
+            }
+            
+            const realProfit = data.finalReal - data.totalContributions;
+            displays.realProfit.innerText = formatter.format(realProfit);
+            displays.realProfit.className = `text-xl font-bold mt-1 ${realProfit >= 0 ? 'text-green-600' : 'text-red-600'}`;
+
+            if (wealthChart) wealthChart.destroy();
+
+            const canvas = document.getElementById('wealthChart');
+            if(!canvas) return; // Zabezpieczenie
+            const ctx = canvas.getContext('2d');
+            
+            let datasetsConfig = [
+                {
+                    label: 'Wartość realna całego majątku',
+                    data: data.realData,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 3,
+                    pointRadius: data.labels.length > 30 ? 0 : 3,
+                    fill: true,
+                    tension: 0.2,
+                    order: 1
+                },
+                {
+                    label: data.monthlyDeposit < 0 ? 'Stan wypłat (Nominalnie)' : 'Suma wpłat (Nominalnie)',
+                    data: data.contributionsData,
+                    borderColor: data.monthlyDeposit < 0 ? '#ef4444' : '#10b981',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0,
+                    order: 3
+                }
+            ];
+
+            if (data.strategyActive) {
+                datasetsConfig.push({
+                    label: 'Oszczędności w gotówce (Wartość realna)',
+                    data: data.cashData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.4)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.1,
+                    order: 2
+                });
+            }
+
+            wealthChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: datasetsConfig
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                },
+                                title: function(context) { return 'Wiek: ' + context[0].label + ' lat'; }
+                            }
+                        },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Wiek (Lata)' }, grid: { display: false } },
+                        y: {
+                            title: { display: true, text: 'Wartość (PLN)' },
+                            min: data.monthlyDeposit < 0 ? undefined : 0, 
+                            ticks: {
+                                callback: function(value) {
+                                    if (Math.abs(value) >= 1000000) return (value / 1000000).toFixed(1) + ' mln';
+                                    else if (Math.abs(value) >= 1000) return (value / 1000).toFixed(0) + ' tys.';
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Uruchomienie na start
+        updatePortfolio();
+        updateChart();
+
+    </script>
+</body>
+</html>
